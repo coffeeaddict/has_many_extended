@@ -13,7 +13,7 @@ The reality is that attributes on a join table are very useful. Some
 attributes of an entity only exist on the relationship that entity has
 with an other entity.
 
-*An example*
+<b>An example</b>
 
 You have a number of products and a number of suppliers. Some of your
 products are available at multiple suppliers.
@@ -72,8 +72,8 @@ That's not DRY. You should be able to meta-program that. Not to
 worry. It has been done for you, and you are reading the README for
 just that tool.
 
-Instead of calling +has_many :them, :through => :joiner+ you now call
-+has_many_extended :them, :through => :joiner+. It wraps the has_many
+Instead of calling <tt>has_many :them, :through => :joiner</tt> you now call
+<tt>has_many_extended :them, :through => :joiner</tt>. It wraps the has_many
 call and then creates methods on your model as described above.
 
 
@@ -109,17 +109,17 @@ call and then creates methods on your model as described above.
 === Options for has_many_extended
 
 has_many_extended wraps has_many so all the options that fit onto
-has_many also fit onto has_many_extended. *Be aware* that
+has_many also fit onto has_many_extended. <b>Be aware</b> that
 has_many_extend expects the :through option to be set. It will raise
 a StandardError when it is not present.
 
 And then there is one extra option that can define the attributes you
 want to create
 
-  *attributes:*:: Specify a list of attributes to create on this end of
-                  the relationship.
+  <b>attributes:</b>:: Specify a list of attributes to create on this end of
+                       the relationship.
 
-*An example*
+<b>An example</b>
 
   class Product
     # ...
