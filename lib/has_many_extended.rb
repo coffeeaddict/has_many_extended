@@ -25,24 +25,35 @@ module HasManyExtended
       has_many them, opts
 
       # we are going to use the join class, so lets get one
-      join_klass = opts[:through].to_s.camelize.singularize
+      join_method = opts[:through]
+      join_klass  = opts[:through].to_s.camelize.singularize
       RAILS_DEFAULT_LOGGER.debug("Going to check #{join_klass}") if DEBUG
 
       # we need an instance of self to figure out the find conditions for
       # the join class
-      me    = self.new
-      my_id = me.class.name.underscore + "_id"
+      me       = self.new
+      my_class = me.class.name
+      my_id    = my_class.underscore + "_id"
       
       # when the user did not supply a list of attributes for this side of
       # the relationship; perfom automagic
       if !create_attributes
-        my_attributes = me.attribute_names
-        RAILS_DEFAULT_LOGGER.debug "#{me.class.name} : #{me.attribute_names.join(', ')}" if DEBUG
+        @@hme_attributes ||= {}
+        @@hme_attributes[my_class] ||= me.attribute_names
+
+        my_attributes = @@hme_attributes[my_class]
+        RAILS_DEFAULT_LOGGER.debug "#{my_class} : #{me.attribute_names.join(', ')}" if DEBUG
 
         # we need to know the attributes of the join class to make automagic
         # happen...
-        join = nil; eval "join = #{join_klass}.new"
-        join_attributes = join.attribute_names.select { |a| a !~ /_id$/ }
+        unless @@hme_attributes[join_klass]
+          join = nil; eval "join = #{join_klass}.new"
+          @@hme_attributes[join_klass] ||= join.attribute_names.select { |a|
+            a !~ /_id$/
+          }
+        end
+        
+        join_attributes = @@hme_attributes[join_klass]
         RAILS_DEFAULT_LOGGER.debug "#{join_klass} : #{join_attributes.join(', ')}" if DEBUG
         
         create_attributes = join_attributes - my_attributes
@@ -51,19 +62,16 @@ module HasManyExtended
       RAILS_DEFAULT_LOGGER.debug "Creating : #{create_attributes.join(', ')}" if DEBUG
       
       create_attributes.each { |attr|
-        RAILS_DEFAULT_LOGGER.debug "Creating #{attr} and #{attr}= on #{me.class.name}" if DEBUG
+        RAILS_DEFAULT_LOGGER.debug "Creating #{attr} and #{attr}= on #{my_class}" if DEBUG
         instance_eval do
           # define a getter
           define_method(attr) do |other|
             join     = nil
             other_id = other.class.name.underscore + "_id"
-            
-            eval "join = #{join_klass}.find("+
-              " :first, "+
-              " :conditions => {"+
-              "   :#{my_id} => self.id, "+
-              "   :#{other_id} => #{other.id} }"+
-              ")"
+
+            join = self.send(join_method).select { |j|
+              j.send(other_id) == other.id
+            }.first
 
             return join ? join.send(attr) : nil
           end
@@ -83,12 +91,10 @@ module HasManyExtended
             join     = nil
             other_id = other.class.name.underscore + "_id"
 
-            eval "join = #{join_klass}.find("+
-              " :first, "+
-              " :conditions => {"+
-              "   :#{my_id} => self.id, "+
-              "   :#{other_id} => #{other.id} }"+
-              ")"
+            join = self.send(join_method).select { |j|
+              j.send(other_id) == other.id
+            }.first
+
             if join
               join.send(attr_is, value)
               join.save
