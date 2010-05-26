@@ -1,0 +1,159 @@
+= HasManyExtended
+
+Call relationship attributes directly on either end of that relationship
+
+
+== Introduction
+
+Every once in a while you bump into the question "How can I get to the
+attributes of the join table?". The default answer is "You can't"
+followed by a variety of reasons. Some good. Some poor.
+
+The reality is that attributes on a join table are very useful. Some
+attributes of an entity only exist on the relationship that entity has
+with an other entity.
+
+*An example*
+
+You have a number of products and a number of suppliers. Some of your
+products are available at multiple suppliers.
+
+So the cost price of a product cannot be stored with the product. Nor
+can it be stored with the supplier. The cost price of a product is the
+cost price @ supplier_x.
+
+The only way to store it, is in the join table. That is; in the
+ProductSupplier model of your Rails application.
+
+
+=== Has_many :through
+
+When using above example we would have three code snippets that look
+something like this:
+
+  class ProductSupplier
+    belongs_to :product
+    belongs_to :supplier
+  end
+
+  class Product
+    has_many :product_suppliers
+    has_many :suppliers, :through => :product_suppliers
+  end
+
+  class Supplier
+    has_many :product_suppliers
+    has_many :products, :through => :product_suppliers
+  end
+
+The ProductSupplier has an attribute cost_price (the price of a
+product at the given supplier)
+
+It is hard to reach. Here is one possibility:
+
+  cost_price = @product.product_suppliers.select { |ps|
+    ps.supplier == @supplier
+  }.first.cost_price
+
+But that seems dreadful. And typing that in is teadious work. So we
+put in the model (skinny controller - fat model. good)
+
+  class Product
+    #...
+    def cost_price(at_supplier)
+      self.product_suppliers.select { |ps|
+        ps.supplier == at_supplier
+      }.first.cost_price
+    end
+
+== has_many, extended
+
+That's not DRY. You should be able to meta-program that. Not to
+worry. It has been done for you, and you are reading the README for
+just that tool.
+
+Instead of calling +has_many :them, :through => :joiner+ you now call
++has_many_extended :them, :through => :joiner+. It wraps the has_many
+call and then creates methods on your model as described above.
+
+
+=== Example
+
+  class ProductSupplier
+    belongs_to :product
+    belongs_to :supplier
+  end
+
+  class Product
+    has_many :product_suppliers
+    has_many_extended :suppliers, :through => :product_suppliers
+  end
+
+  class Supplier
+    has_many :product_suppliers
+
+    # the join table only specifies attributes for a product @ a
+    # supplier so no has_many_extended here
+    #
+    has_many :products, :through => :product_suppliers
+  end  
+
+  @supplier = Supplier.last
+  @product = Product.first
+  @product.cost_price @supplier   # 12.95
+
+  # has_many_extended also renders a setter for you
+  @product.cost_price = @supplier, 13.95
+
+
+=== Options for has_many_extended
+
+has_many_extended wraps has_many so all the options that fit onto
+has_many also fit onto has_many_extended. *Be aware* that
+has_many_extend expects the :through option to be set. It will raise
+a StandardError when it is not present.
+
+And then there is one extra option that can define the attributes you
+want to create
+
+  *attributes:*:: Specify a list of attributes to create on this end of
+                  the relationship.
+
+*An example*
+
+  class Product
+    # ...
+    has_many_extended :suppliers, :through => :product_suppliers, :attributes => [ :cost_price, :part_nr ]
+    # ...
+  end
+
+  class Supplier
+    # ...
+    has_many_extend :products :through => :product_suppliers, :attributes => [ :active ]
+    # ...
+  end
+
+
+== Bugs, caveats, etc.
+
+=== Speed
+
+This thing is slow. It will perform loads and loads of queries if you
+are not careful.
+
+Make sure to include everything upto the join class when loading an
+object that holds many Products (<-- examplatory, ok) and want to
+display each products' cost price
+
+
+=== Bugs, etc.
+
+There should be many. This was a brainfart. It was refactored before
+release but defensive programming was not generally applied.
+
+Please fork and send me pull requests if things break.
+
+
+== Author, license, etc.
+
+Copyright (c) 2010 Hartog de Mik, released under the MIT license
