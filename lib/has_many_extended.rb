@@ -26,7 +26,21 @@ module HasManyExtended
 
       # we are going to use the join class, so lets get one
       join_method = opts[:through]
-      join_klass  = opts[:through].to_s.camelize.singularize
+
+      join_klass = nil
+
+      # find the reflection and check for if there was a class_name set
+      if (
+        self.reflections.has_key? opts[:through] and
+        self.reflections[opts[:through]].options.has_key? :class_name
+      ) then
+        join_klass = self.reflections[opts[:through]].options[:class_name]
+
+      else
+        join_klass  = opts[:through].to_s.camelize.singularize
+
+      end
+      
       RAILS_DEFAULT_LOGGER.debug("Going to check #{join_klass}") if DEBUG
 
       # we need an instance of self to figure out the find conditions for
