@@ -105,10 +105,12 @@ module HasManyExtended
             join     = nil
             other_id = other.class.name.underscore + "_id"
 
-            join = self.send(join_method).select { |j|
-              j.send(other_id) == other.id
-            }.first
-
+            eval "join = #{join_klass}.find("+
+              " :first, "+
+              " :conditions => {"+
+              "   :#{my_id} => self.id, "+
+              "   :#{other_id} => #{other.id} }"+
+              ")"
             if join
               join.send(attr_is, value)
               join.save
